@@ -16,6 +16,7 @@ class Camera {
 
     void move(Camera::Direction dir);
     void rotate(double dx, double dy);
+    glm::vec3 getPos() { return pos_; }
 
     // FIXME: add functions to manipulate camera objects.
    private:

@@ -14,9 +14,12 @@
 #include <GLFW/glfw3.h>
 #include <debuggl.h>
 #include "camera.h"
-#include "menger.h"
+#include "cube.cc"
+#include "terrain.h"
 
 int window_width = 800, window_height = 600;
+
+constexpr unsigned int cubes = 6400;
 
 // VBO and VAO descriptors.
 enum { kVertexBuffer, kIndexBuffer, kNumVbos };
@@ -32,17 +35,20 @@ GLuint g_buffer_objects[kNumVaos]
 // See http://en.cppreference.com/w/cpp/language/string_literal
 const char* vertex_shader =
     R"zzz(#version 330 core
-in vec4 vertex_position;
-
+layout(location = 0) in vec4 vertex_position;
+layout(location = 1) in vec3 cube_offset;
 uniform mat4 view;
 uniform vec4 light_position;
 
 out vec4 vs_light_direction;
 out vec4 vs_world_pos;
+out vec4 pos;
+
 void main()
 {
+    pos = vertex_position + vec4(cube_offset, 0.0);
     vs_world_pos = vertex_position;
-	gl_Position = view * vertex_position;
+	gl_Position = view * pos;
 	vs_light_direction = view * (vertex_position - light_position);
 }
 )zzz";
@@ -59,7 +65,7 @@ uniform mat4 view;
 in vec4 vs_light_direction[];
 flat out vec4 normal;
 flat out vec4 world_norm;
-
+in vec4 pos[];
 in vec4 vs_world_pos[];
 
 
@@ -84,7 +90,7 @@ void main()
 
 	for (int n = 0; n < gl_in.length(); n++) {
 		light_direction = vs_light_direction[n];
-		world_position = vs_world_pos[n];
+		world_position = pos[n];
 		gl_Position = projection  * gl_in[n].gl_Position;
 		EmitVertex();
 	}
@@ -100,11 +106,10 @@ in vec4 light_direction;
 out vec4 fragment_color;
 void main()
 {
-    vec4 color = vec4 (normal.x, normal.y,normal.z, 0.f);
+    vec4 color = vec4(abs(normal.x), abs(normal.y), abs(normal.z), 0.f);
     vec4 base_col = clamp(world_norm * world_norm, 0.0, 1.0);
     float intensity = clamp(-dot(light_direction, color), 0.0, 1.0);
-    fragment_color = clamp(intensity * base_col, 0.0, 1.0);
-    fragment_color.a = 1.0;
+    fragment_color = color;
 }
 )zzz";
 
@@ -182,7 +187,7 @@ void ErrorCallback(int error, const char* description) {
     std::cerr << "GLFW Error: " << description << "\n";
 }
 
-std::shared_ptr<Menger> g_menger;
+// std::shared_ptr<Menger> g_menger;
 Camera g_camera;
 bool g_save_geo = false;
 
@@ -220,20 +225,6 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action,
     } else if (key == GLFW_KEY_C && action != GLFW_RELEASE) {
         // FIXME: FPS mode on/off
     }
-    if (!g_menger) return;  // 0-4 only available in Menger mode.
-    if (key == GLFW_KEY_0 && action != GLFW_RELEASE) {
-        // FIXME: Change nesting level of g_menger
-        // Note: GLFW_KEY_0 - 4 may not be continuous.
-        g_menger->set_nesting_level(0);
-    } else if (key == GLFW_KEY_1 && action != GLFW_RELEASE) {
-        g_menger->set_nesting_level(1);
-    } else if (key == GLFW_KEY_2 && action != GLFW_RELEASE) {
-        g_menger->set_nesting_level(2);
-    } else if (key == GLFW_KEY_3 && action != GLFW_RELEASE) {
-        g_menger->set_nesting_level(3);
-    } else if (key == GLFW_KEY_4 && action != GLFW_RELEASE) {
-        g_menger->set_nesting_level(4);
-    }
 }
 
 int g_current_button;
@@ -265,10 +256,13 @@ void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
 }
 
 int main(int argc, char* argv[]) {
-    std::string window_title = "Menger";
+    std::string window_title = "Minecraft";
     if (!glfwInit()) exit(EXIT_FAILURE);
-    g_menger = std::make_shared<Menger>();
+    // g_menger = std::make_shared<Menger>();
     glfwSetErrorCallback(ErrorCallback);
+
+    srand((unsigned)time(NULL));
+    Terrain terrian(rand());
 
     // Ask an OpenGL 4.1 core profile context
     // It is required on OSX and non-NVIDIA Linux
@@ -293,13 +287,10 @@ int main(int argc, char* argv[]) {
     std::cout << "Renderer: " << renderer << "\n";
     std::cout << "OpenGL version supported:" << version << "\n";
 
-    std::vector<glm::vec4> obj_vertices;
-    std::vector<glm::uvec3> obj_faces;
-
-    // FIXME: Create the geometry from a Menger object.
-    CreateTriangle(obj_vertices, obj_faces);
-
-    g_menger->set_nesting_level(1);
+    std::vector<glm::vec4> obj_vertices = Cube::vertices;
+    std::vector<glm::uvec3> obj_faces = Cube::faces;
+    std::vector<glm::vec3> offsets;
+    offsets.resize(cubes);
 
     glm::vec4 min_bounds = glm::vec4(std::numeric_limits<float>::max());
     glm::vec4 max_bounds = glm::vec4(-std::numeric_limits<float>::max());
@@ -322,12 +313,27 @@ int main(int argc, char* argv[]) {
     // Setup vertex data in a VBO.
     CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER,
                                 g_buffer_objects[kGeometryVao][kVertexBuffer]));
+
     // NOTE: We do not send anything right now, we just describe it to OpenGL.
-    CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
-                                sizeof(float) * obj_vertices.size() * 4,
-                                obj_vertices.data(), GL_STATIC_DRAW));
+
+    int numVertices = sizeof(float) * obj_vertices.size() * 4;
+    int numOffsets = sizeof(float) * offsets.size() * 3;
+    CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER, numVertices + numOffsets, 0,
+                                GL_STATIC_DRAW));
+    CHECK_GL_ERROR(
+        glBufferSubData(GL_ARRAY_BUFFER, 0, numVertices, obj_vertices.data()));
+    CHECK_GL_ERROR(glBufferSubData(GL_ARRAY_BUFFER, numVertices, numOffsets,
+                                   offsets.data()));
+
+    // Enable vertex positions to be passed in under location 0
     CHECK_GL_ERROR(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0));
     CHECK_GL_ERROR(glEnableVertexAttribArray(0));
+
+    // Enable vertex offsets to be passed in under location 1, instanced
+    CHECK_GL_ERROR(glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0,
+                                         (void*)((uint64_t)numVertices)));
+    CHECK_GL_ERROR(glEnableVertexAttribArray(1));
+    CHECK_GL_ERROR(glVertexAttribDivisor(1, 1));  // Per-instance locations
 
     // Setup element array buffer.
     CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
@@ -335,14 +341,6 @@ int main(int argc, char* argv[]) {
     CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
                                 sizeof(uint32_t) * obj_faces.size() * 3,
                                 obj_faces.data(), GL_STATIC_DRAW));
-
-    /*
-     * By far, the geometry is loaded into g_buffer_objects[kGeometryVao][*].
-     * These buffers are binded to g_array_objects[kGeometryVao]
-     */
-
-    // FIXME: load the floor into g_buffer_objects[kFloorVao][*],
-    //        and bind these VBO to g_array_objects[kFloorVao]
 
     // Setup vertex shader.
     GLuint vertex_shader_id = 0;
@@ -409,15 +407,6 @@ int main(int argc, char* argv[]) {
     glCompileShader(floor_fragment_shader_id);
     CHECK_GL_SHADER_ERROR(floor_fragment_shader_id);
 
-    // FIXME: Setup another program for the floor, and get its locations.
-    // Note: you can reuse the vertex and geometry shader objects
-
-    // // Setup vertex data in a VBO.
-
-    // // NOTE: We do not send anything right now, we just describe it to
-
-    // // Setup element array buffer.
-
     std::vector<glm::vec4> floor_vertices;
     std::vector<glm::uvec3> floor_faces;
     createFloor(floor_vertices, floor_faces, -2.0f, 10.0f);
@@ -467,8 +456,24 @@ int main(int argc, char* argv[]) {
     glm::vec4 light_position = glm::vec4(10.0f, 10.0f, 10.0f, 1.0f);
     float aspect = 0.0f;
     float theta = 0.0f;
+    glm::ivec2 prevChunk(-50, -50);
     while (!glfwWindowShouldClose(window)) {
-        // Setup some basic window stuff.
+        glm::ivec2 curChunk = terrian.toChunkCoords(g_camera.getPos());
+
+        if (curChunk != prevChunk) {
+            prevChunk = curChunk;
+            offsets = terrian.getSurfaceForRender(g_camera.getPos(),
+                                                  glm::vec2(-1.0, 1.0));
+
+            CHECK_GL_ERROR(
+                glBindBuffer(GL_ARRAY_BUFFER,
+                             g_buffer_objects[kGeometryVao][kVertexBuffer]));
+
+            CHECK_GL_ERROR(glBufferSubData(
+                GL_ARRAY_BUFFER, sizeof(float) * obj_vertices.size() * 4,
+                sizeof(float) * cubes * 3, offsets.data()));
+        }
+
         glfwGetFramebufferSize(window, &window_width, &window_height);
         glViewport(0, 0, window_width, window_height);
         glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
@@ -479,63 +484,11 @@ int main(int argc, char* argv[]) {
         // Switch to the Geometry VAO.
         CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kGeometryVao]));
 
-        if (g_menger && g_menger->is_dirty()) {
-            g_menger->generate_geometry(obj_vertices, obj_faces);
-            g_menger->set_clean();
-
-            // FIXME: Upload your vertex data here.
-
-            // Setup our VAO array.
-            CHECK_GL_ERROR(glGenVertexArrays(kNumVaos, &g_array_objects[0]));
-
-            // Switch to the VAO for Geometry.
-            CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kGeometryVao]));
-
-            // Generate buffer objects
-            CHECK_GL_ERROR(
-                glGenBuffers(kNumVbos, &g_buffer_objects[kGeometryVao][0]));
-
-            // Setup vertex data in a VBO.
-            CHECK_GL_ERROR(
-                glBindBuffer(GL_ARRAY_BUFFER,
-                             g_buffer_objects[kGeometryVao][kVertexBuffer]));
-            // NOTE: We do not send anything right now, we just describe it to
-            // OpenGL.
-            CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
-                                        sizeof(float) * obj_vertices.size() * 4,
-                                        obj_vertices.data(), GL_STATIC_DRAW));
-            CHECK_GL_ERROR(
-                glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0));
-            CHECK_GL_ERROR(glEnableVertexAttribArray(0));
-
-            // Setup element array buffer.
-            CHECK_GL_ERROR(
-                glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
-                             g_buffer_objects[kGeometryVao][kIndexBuffer]));
-            CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                                        sizeof(uint32_t) * obj_faces.size() * 3,
-                                        obj_faces.data(), GL_STATIC_DRAW));
-        }
-
-        // Save the geometry to a .obj file if needed
-        if (g_save_geo) {
-            SaveObj("geometry.obj", obj_vertices, obj_faces);
-            g_save_geo = false;
-        }
-
         // Compute the projection matrix.
         aspect = static_cast<float>(window_width) / window_height;
         glm::mat4 projection_matrix =
             glm::perspective(glm::radians(45.0f), aspect, 0.0001f, 1000.0f);
 
-        // float min = -0.001f;
-        // float max = 0.001f;
-        // projection_matrix = glm::ortho(min * window_width, max *
-        // window_width,
-        //                                min * window_height, max *
-        //                                window_height, 0.0001f, 1000.0f);
-        // Compute the view matrix
-        // FIXME: change eye and center through mouse/keyboard events.
         g_camera.update();
         glm::mat4 view_matrix = g_camera.get_view_matrix();
 
@@ -551,38 +504,23 @@ int main(int argc, char* argv[]) {
             glUniform4fv(light_position_location, 1, &light_position[0]));
 
         // Draw our triangles.
-        CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, obj_faces.size() * 3,
-                                      GL_UNSIGNED_INT, 0));
+        CHECK_GL_ERROR(glDrawElementsInstanced(
+            GL_TRIANGLES, obj_faces.size() * 3, GL_UNSIGNED_INT, 0, cubes));
 
         CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kFloorVao]));
-        CHECK_GL_ERROR(glGenBuffers(kNumVbos, &g_buffer_objects[kFloorVao][0]));
         CHECK_GL_ERROR(glBindBuffer(
             GL_ARRAY_BUFFER, g_buffer_objects[kFloorVao][kVertexBuffer]));
-
-        CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
-                                    sizeof(float) * floor_vertices.size() * 4,
-                                    floor_vertices.data(), GL_STATIC_DRAW));
-        CHECK_GL_ERROR(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0));
-        CHECK_GL_ERROR(glEnableVertexAttribArray(0));
-
         CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
                                     g_buffer_objects[kFloorVao][kIndexBuffer]));
-        CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                                    sizeof(uint32_t) * floor_faces.size() * 3,
-                                    floor_faces.data(), GL_STATIC_DRAW));
         CHECK_GL_ERROR(glUseProgram(floor_program_id));
-
-        // // Pass uniforms in.
-        CHECK_GL_ERROR(glUniformMatrix4fv(projection_matrix_location, 1,
+        CHECK_GL_ERROR(glUniformMatrix4fv(floor_projection_matrix_location, 1,
                                           GL_FALSE, &projection_matrix[0][0]));
-        CHECK_GL_ERROR(glUniformMatrix4fv(view_matrix_location, 1, GL_FALSE,
-                                          &view_matrix[0][0]));
+        CHECK_GL_ERROR(glUniformMatrix4fv(floor_view_matrix_location, 1,
+                                          GL_FALSE, &view_matrix[0][0]));
         CHECK_GL_ERROR(
-            glUniform4fv(light_position_location, 1, &light_position[0]));
+            glUniform4fv(floor_light_position_location, 1, &light_position[0]));
         CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, floor_faces.size() * 3,
                                       GL_UNSIGNED_INT, 0));
-        // CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, floor_faces.size() * 3,
-        //                               GL_UNSIGNED_INT, 0));
 
         // Poll and swap.
         glfwPollEvents();
