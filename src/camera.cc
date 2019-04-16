@@ -4,10 +4,10 @@
 #include <glm/gtx/rotate_vector.hpp>
 
 namespace {
-float pan_speed = 0.1f;
-float roll_speed = 0.1f;
+float pan_speed = 0.5f;
+float roll_speed = 0.5f;
 float rotation_speed = 0.05f;
-float zoom_speed = 0.1f;
+float zoom_speed = 0.5f;
 };  // namespace
 
 void Camera::rotate(double dx, double dy) {

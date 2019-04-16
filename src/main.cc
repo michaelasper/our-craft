@@ -19,7 +19,7 @@
 
 int window_width = 800, window_height = 600;
 
-constexpr unsigned int cubes = 6400;
+constexpr unsigned int cubes = 12000;
 
 // VBO and VAO descriptors.
 enum { kVertexBuffer, kIndexBuffer, kNumVbos };
@@ -463,7 +463,7 @@ int main(int argc, char* argv[]) {
         if (curChunk != prevChunk) {
             prevChunk = curChunk;
             offsets = terrian.getSurfaceForRender(g_camera.getPos(),
-                                                  glm::vec2(-1.0, 1.0));
+                                                  glm::vec2(-5.0, -3.0));
 
             CHECK_GL_ERROR(
                 glBindBuffer(GL_ARRAY_BUFFER,
