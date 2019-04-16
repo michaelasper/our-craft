@@ -1,4 +1,5 @@
 #include "terrain.h"
+#include "perlin.h"
 
 Chunk::Chunk(const glm::ivec2& pos, int size, std::mt19937& gen,
              Terrain* terrian) {
@@ -28,7 +29,7 @@ std::vector<float> Chunk::perlinNoise(uint64_t seed) const {
     }
 
     return result;
-}
+ }
 
 glm::ivec2 Terrain::toChunkCoords(glm::vec3 coords) const {
     return glm::ivec2((int)coords.x / this->size, (int)coords.z / this->size);
