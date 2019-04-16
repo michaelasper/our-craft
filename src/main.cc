@@ -25,7 +25,7 @@ constexpr unsigned int cubes = 12000;
 enum { kVertexBuffer, kIndexBuffer, kNumVbos };
 
 // These are our VAOs.
-enum { kGeometryVao, kFloorVao, kNumVaos };
+enum { kGeometryVao, kNumVaos };
 
 GLuint g_array_objects[kNumVaos];  // This will store the VAO descriptors.
 GLuint g_buffer_objects[kNumVaos]
@@ -113,44 +113,12 @@ void main()
 }
 )zzz";
 
-// FIXME: Implement shader effects with an alternative shader.
-const char* floor_fragment_shader =
-    R"zzz(#version 330 core
-flat in vec4 normal;
-in vec4 light_direction;
-in vec4 world_position;
-out vec4 fragment_color;
-void main()
-{
-	vec4 color = vec4(0.0, 0.0, 0.0, 0.0);
-	if (int(floor(world_position[0])+floor(world_position[2])) % 2 == 0) {
-		color = vec4(1.0, 1.0, 1.0, 1.0);
-	}
-	float dot_nl = dot(normalize(light_direction), normalize(normal));
-	dot_nl = clamp(dot_nl, 0.0, 1.0);
-	fragment_color = clamp(dot_nl * color, 0.0, 1.0);
-}
-)zzz";
-
 void CreateTriangle(std::vector<glm::vec4>& vertices,
                     std::vector<glm::uvec3>& indices) {
     vertices.push_back(glm::vec4(-0.5f, -0.5f, -0.5f, 1.0f));
     vertices.push_back(glm::vec4(0.5f, -0.5f, -0.5f, 1.0f));
     vertices.push_back(glm::vec4(0.0f, 0.5f, -0.5f, 1.0f));
     indices.push_back(glm::uvec3(0, 1, 2));
-}
-
-void createFloor(std::vector<glm::vec4>& vertices,
-                 std::vector<glm::uvec3>& indices, float height, float width) {
-    vertices.push_back(glm::vec4(0.0f, height, 0.0f, 1.0f));
-    vertices.push_back(glm::vec4(-2000.0f, height, -2000.0f, 0.0f));
-    vertices.push_back(glm::vec4(-2000.0f, height, 2000.0f, 0.0f));
-    vertices.push_back(glm::vec4(2000.0f, height, 2000.0f, 0.0f));
-    vertices.push_back(glm::vec4(2000.0f, height, -2000.0f, 0.0f));
-    indices.push_back(glm::uvec3(0, 1, 2));
-    indices.push_back(glm::uvec3(0, 2, 3));
-    indices.push_back(glm::uvec3(0, 3, 4));
-    indices.push_back(glm::uvec3(0, 4, 1));
 }
 
 std::string readFile(const char* filePath) {
@@ -396,62 +364,6 @@ int main(int argc, char* argv[]) {
     GLint light_position_location = 0;
     CHECK_GL_ERROR(light_position_location =
                        glGetUniformLocation(program_id, "light_position"));
-
-    // Setup fragment shader for the floor
-    GLuint floor_fragment_shader_id = 0;
-    const char* floor_fragment_source_pointer = floor_fragment_shader;
-    CHECK_GL_ERROR(floor_fragment_shader_id =
-                       glCreateShader(GL_FRAGMENT_SHADER));
-    CHECK_GL_ERROR(glShaderSource(floor_fragment_shader_id, 1,
-                                  &floor_fragment_source_pointer, nullptr));
-    glCompileShader(floor_fragment_shader_id);
-    CHECK_GL_SHADER_ERROR(floor_fragment_shader_id);
-
-    std::vector<glm::vec4> floor_vertices;
-    std::vector<glm::uvec3> floor_faces;
-    createFloor(floor_vertices, floor_faces, -2.0f, 10.0f);
-
-    CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kFloorVao]));
-    CHECK_GL_ERROR(glGenBuffers(kNumVbos, &g_buffer_objects[kFloorVao][0]));
-    CHECK_GL_ERROR(glBindBuffer(GL_ARRAY_BUFFER,
-                                g_buffer_objects[kFloorVao][kVertexBuffer]));
-
-    CHECK_GL_ERROR(glBufferData(GL_ARRAY_BUFFER,
-                                sizeof(float) * floor_vertices.size() * 4,
-                                floor_vertices.data(), GL_STATIC_DRAW));
-    CHECK_GL_ERROR(glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, 0, 0));
-    CHECK_GL_ERROR(glEnableVertexAttribArray(0));
-
-    CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
-                                g_buffer_objects[kFloorVao][kIndexBuffer]));
-    CHECK_GL_ERROR(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-                                sizeof(uint32_t) * floor_faces.size() * 3,
-                                floor_faces.data(), GL_STATIC_DRAW));
-
-    GLuint floor_program_id = 0;
-    CHECK_GL_ERROR(floor_program_id = glCreateProgram());
-    CHECK_GL_ERROR(glAttachShader(floor_program_id, vertex_shader_id));
-    CHECK_GL_ERROR(glAttachShader(floor_program_id, floor_fragment_shader_id));
-    CHECK_GL_ERROR(glAttachShader(floor_program_id, geometry_shader_id));
-
-    // Bind attributes.
-    CHECK_GL_ERROR(
-        glBindAttribLocation(floor_program_id, 0, "vertex_position"));
-    CHECK_GL_ERROR(
-        glBindFragDataLocation(floor_program_id, 0, "fragment_color"));
-    glLinkProgram(floor_program_id);
-    CHECK_GL_PROGRAM_ERROR(floor_program_id);
-
-    // Get the uniform locations.
-    GLint floor_projection_matrix_location = 0;
-    CHECK_GL_ERROR(floor_projection_matrix_location =
-                       glGetUniformLocation(floor_program_id, "projection"));
-    GLint floor_view_matrix_location = 0;
-    CHECK_GL_ERROR(floor_view_matrix_location =
-                       glGetUniformLocation(floor_program_id, "view"));
-    GLint floor_light_position_location = 0;
-    CHECK_GL_ERROR(floor_light_position_location = glGetUniformLocation(
-                       floor_program_id, "light_position"));
 
     glm::vec4 light_position = glm::vec4(10.0f, 10.0f, 10.0f, 1.0f);
     float aspect = 0.0f;
