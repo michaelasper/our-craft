@@ -507,21 +507,6 @@ int main(int argc, char* argv[]) {
         CHECK_GL_ERROR(glDrawElementsInstanced(
             GL_TRIANGLES, obj_faces.size() * 3, GL_UNSIGNED_INT, 0, cubes));
 
-        CHECK_GL_ERROR(glBindVertexArray(g_array_objects[kFloorVao]));
-        CHECK_GL_ERROR(glBindBuffer(
-            GL_ARRAY_BUFFER, g_buffer_objects[kFloorVao][kVertexBuffer]));
-        CHECK_GL_ERROR(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER,
-                                    g_buffer_objects[kFloorVao][kIndexBuffer]));
-        CHECK_GL_ERROR(glUseProgram(floor_program_id));
-        CHECK_GL_ERROR(glUniformMatrix4fv(floor_projection_matrix_location, 1,
-                                          GL_FALSE, &projection_matrix[0][0]));
-        CHECK_GL_ERROR(glUniformMatrix4fv(floor_view_matrix_location, 1,
-                                          GL_FALSE, &view_matrix[0][0]));
-        CHECK_GL_ERROR(
-            glUniform4fv(floor_light_position_location, 1, &light_position[0]));
-        CHECK_GL_ERROR(glDrawElements(GL_TRIANGLES, floor_faces.size() * 3,
-                                      GL_UNSIGNED_INT, 0));
-
         // Poll and swap.
         glfwPollEvents();
         glfwSwapBuffers(window);

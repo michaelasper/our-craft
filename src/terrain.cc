@@ -24,7 +24,7 @@ std::vector<float> Chunk::perlinNoise(uint64_t seed) const {
     std::uniform_real_distribution<> dis(1.0, 3.0);
     for (int i = 0; i < 16 * 16; i++) {
         // grads[i] = glm::vec2(cos(gen()), sin(gen()));
-        result.push_back(dis(gen));
+        result.push_back(sin(i * (3.14 / 16)) * 3.14);
     }
 
     return result;
