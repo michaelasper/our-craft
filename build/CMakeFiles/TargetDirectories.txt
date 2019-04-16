@@ -1,0 +1,7 @@
+/Users/dmanc/Projects/our-craft/build/CMakeFiles/rebuild_cache.dir
+/Users/dmanc/Projects/our-craft/build/CMakeFiles/edit_cache.dir
+/Users/dmanc/Projects/our-craft/build/CMakeFiles/pmdreader.dir
+/Users/dmanc/Projects/our-craft/build/CMakeFiles/utgraphicsutil.dir
+/Users/dmanc/Projects/our-craft/build/src/CMakeFiles/rebuild_cache.dir
+/Users/dmanc/Projects/our-craft/build/src/CMakeFiles/edit_cache.dir
+/Users/dmanc/Projects/our-craft/build/src/CMakeFiles/skinning.dir
