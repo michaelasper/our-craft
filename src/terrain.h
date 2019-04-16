@@ -1,3 +1,6 @@
+#ifndef TERR_H
+#define TERR_H
+
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -6,6 +9,8 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+#include "perlin.h"
 
 #include <glm/glm.hpp>
 #include <glm/gtx/hash.hpp>
@@ -20,6 +25,8 @@ class Terrain {
     std::unordered_map<glm::ivec2, Chunk, std::hash<glm::ivec2>,
                        std::equal_to<glm::ivec2>>
         chunkMap;
+
+    Perlin p = Perlin();
 
    public:
     Terrain(uint64_t seed) : gen(seed) {}
@@ -36,6 +43,10 @@ class Chunk {
     glm::ivec2 pos;
     std::vector<float> heightMap(float min, float max) const;
 
+    std::vector<glm::vec2> gradients;
+
     std::vector<float> perlinNoise(uint64_t seed) const;
     Chunk(const glm::ivec2& pos, int extent, std::mt19937& gen, Terrain* T);
 };
+
+#endif

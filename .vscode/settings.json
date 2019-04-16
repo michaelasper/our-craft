@@ -36,6 +36,7 @@
         "streambuf": "cpp",
         "string_view": "cpp",
         "tuple": "cpp",
-        "typeinfo": "cpp"
+        "typeinfo": "cpp",
+        "string": "cpp"
     }
 }

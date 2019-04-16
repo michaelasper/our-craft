@@ -15,6 +15,7 @@
 #include <debuggl.h>
 #include "camera.h"
 #include "cube.cc"
+// #include "perlin.h"
 #include "terrain.h"
 
 int window_width = 800, window_height = 600;
@@ -368,7 +369,7 @@ int main(int argc, char* argv[]) {
     glm::vec4 light_position = glm::vec4(10.0f, 10.0f, 10.0f, 1.0f);
     float aspect = 0.0f;
     float theta = 0.0f;
-    glm::ivec2 prevChunk(-50, -50);
+    glm::ivec2 prevChunk(-500, -500);
     while (!glfwWindowShouldClose(window)) {
         glm::ivec2 curChunk = terrian.toChunkCoords(g_camera.getPos());
 

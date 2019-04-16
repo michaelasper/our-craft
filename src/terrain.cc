@@ -1,11 +1,39 @@
 #include "terrain.h"
-#include "perlin.h"
+// #include "perlin.h"
 
 Chunk::Chunk(const glm::ivec2& pos, int size, std::mt19937& gen,
              Terrain* terrian) {
     this->tex_seed = gen();
     this->pos = pos;
     this->size = size;
+
+    for (int i = 0; i < 4; ++i) {
+        float theta = gen();
+        gradients.push_back(glm::vec2(sin(theta), cos(theta)));
+    }
+    // std::cout << pos.x << " " << pos.y << std::endl;
+
+    if (pos == glm::ivec2(0, 0)) return;
+    // std::cout << pos.x << " " << pos.y << std::endl;
+    if (pos.x > 0) {
+        const Chunk& C = terrian->getChunk(pos + glm::ivec2(-1, 0));
+        gradients[0] = C.gradients[1];
+        gradients[2] = C.gradients[3];
+    } else if (pos.x < 0) {  // Replace right edge
+        const Chunk& C = terrian->getChunk(pos + glm::ivec2(1, 0));
+        gradients[1] = C.gradients[0];
+        gradients[3] = C.gradients[2];
+    }
+
+    if (pos.y > 0) {
+        const Chunk& C = terrian->getChunk(pos + glm::ivec2(0, -1));
+        gradients[0] = C.gradients[2];
+        gradients[1] = C.gradients[3];
+    } else if (pos.y < 0) {
+        const Chunk& C = terrian->getChunk(pos + glm::ivec2(0, 1));
+        gradients[2] = C.gradients[0];
+        gradients[3] = C.gradients[1];
+    }
 }
 
 std::vector<float> Chunk::heightMap(float min, float max) const {
@@ -29,7 +57,7 @@ std::vector<float> Chunk::perlinNoise(uint64_t seed) const {
     }
 
     return result;
- }
+}
 
 glm::ivec2 Terrain::toChunkCoords(glm::vec3 coords) const {
     return glm::ivec2((int)coords.x / this->size, (int)coords.z / this->size);
@@ -45,8 +73,12 @@ std::vector<glm::vec3> Terrain::genChunkSurface(glm::ivec2 chunkCoords,
     for (int i = 0; i < this->size; i++) {
         for (int j = 0; j < this->size; j++) {
             int index = i + this->size * j;
-            glm::vec3 coords(chunk.pos.x + i, round(heightMap[index]),
-                             chunk.pos.y + j);
+            double height =
+                p.noise(chunk.pos.x + i, chunk.pos.y + j, chunk.gradients) *
+                    .5 +
+                .5;
+            // std::cout << height << std::endl;
+            glm::vec3 coords(chunk.pos.x + i, height, chunk.pos.y + j);
             surfaceMap[index] = coords;
         }
     }
@@ -78,7 +110,7 @@ std::vector<glm::vec3> Terrain::getSurfaceForRender(glm::vec3 pos,
     glm::ivec2 center = this->toChunkCoords(pos);
     int distance = 5;
     std::vector<glm::vec3> surfaceMap;
-    surfaceMap.reserve(5 * 5 * this->size * this->size);
+    surfaceMap.resize(5 * 5 * this->size * this->size);
     std::fill(surfaceMap.begin(), surfaceMap.end(),
               glm::vec3(0.0f, -1000.0f, 0.0f));
 
