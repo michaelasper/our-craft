@@ -3,6 +3,8 @@
 #include <algorithm>
 #include "noise.h"
 
+#include <glm/glm.hpp>
+
 Chunk::Chunk(const glm::ivec2& pos, int size, std::mt19937& gen,
              Terrain* terrain, int seed) {
     this->gen = gen;
@@ -59,6 +61,54 @@ std::vector<glm::vec3> Terrain::genChunkSurface(glm::ivec2 chunkCoords) {
     std::vector<glm::vec3> surfaceMap;
     surfaceMap.resize(this->size * this->size);
 
+    for (int z = 0; z < 4; z++) {
+        std::vector<float> neighborNoise;
+        int start, Nstart;
+        int stride, Nstride;
+
+        switch (z) {
+            case 0:
+                start = 0;
+                Nstart = this->size * this->size - this->size;
+
+                stride = 1;
+                Nstride = 1;
+                neighborNoise =
+                    this->getChunk(chunkCoords + glm::ivec2(0, -1)).heightMap();
+                break;
+            case 1:
+                start = 0;
+                Nstart = this->size - 1;
+                stride = this->size;
+                Nstride = this->size;
+                neighborNoise =
+                    this->getChunk(chunkCoords + glm::ivec2(-1, 0)).heightMap();
+                break;
+            case 2:
+                start = this->size - 1;
+                Nstart = 0;
+                stride = this->size;
+                Nstride = this->size;
+                neighborNoise =
+                    this->getChunk(chunkCoords + glm::ivec2(1, 0)).heightMap();
+                break;
+            case 3:
+                start = this->size * this->size - this->size;
+                stride = 1;
+                Nstart = 0;
+                Nstride = 1;
+                neighborNoise =
+                    this->getChunk(chunkCoords + glm::ivec2(0, 1)).heightMap();
+                break;
+        }
+
+        for (int i = 0; i < this->size; i++) {
+            heightMap[i * stride + start] =
+                glm::mix(heightMap[i * stride + start],
+                         neighborNoise[i * Nstride + Nstart], .4);
+        }
+    }
+
     for (int i = 0; i < this->size; i++) {
         for (int j = 0; j < this->size; j++) {
             int index = i + this->size * j;
@@ -98,20 +148,19 @@ std::vector<glm::vec3> Terrain::getSurfaceForRender(glm::vec3 pos) {
     surfaceMap.resize(mapSize * mapSize);
     ;
 
-    for (int i = 0; i < 5; i++) {
-        for (int j = 0; j < 5; j++) {
-            glm::ivec2 c(center + glm::ivec2(i - 2, j - 2));  // Chunk's indices
+    for (int i = 0; i < distance; i++) {
+        for (int j = 0; j < distance; j++) {
+            glm::ivec2 c(center + glm::ivec2(i - 2, j - 2));
             std::vector<glm::vec3> cOffsets = this->genChunkSurface(c);
             for (auto& offset : cOffsets) {
                 offset += glm::vec3(c.x, 0.0, c.y) * (float)(this->size - 1);
             }
 
-            // Map into offsets at the right locations
             for (int cj = 0; cj < this->size; cj++) {
                 for (int ci = 0; ci < this->size; ci++) {
-                    int ind = ci + i * this->size + cj * mapSize +
-                              j * mapSize * this->size;
-                    surfaceMap[ind] = cOffsets[ci + this->size * cj];
+                    int index = ci + i * this->size + cj * mapSize +
+                                j * mapSize * this->size;
+                    surfaceMap[index] = cOffsets[ci + this->size * cj];
                 }
             }
         }
@@ -119,7 +168,7 @@ std::vector<glm::vec3> Terrain::getSurfaceForRender(glm::vec3 pos) {
 
     fill(surfaceMap, mapSize);
 
-    while (surfaceMap.size() < 12000) {
+    while (surfaceMap.size() < 32000) {
         surfaceMap.emplace_back(0.0f, -1000.0f, 0.0f);
     }
 

@@ -21,7 +21,7 @@
 
 int window_width = 800, window_height = 600;
 
-constexpr unsigned int cubes = 12000;
+constexpr unsigned int cubes = 32000;
 
 // VBO and VAO descriptors.
 enum { kVertexBuffer, kIndexBuffer, kNumVbos };
