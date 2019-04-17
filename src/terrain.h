@@ -26,10 +26,12 @@ class Terrain {
                        std::equal_to<glm::ivec2>>
         chunkMap;
 
+    int chunkSeed;
+
    public:
     // Perlin p = Perlin();
 
-    Terrain(std::mt19937& gen) : gen(gen) {}
+    Terrain(std::mt19937& gen) : gen(gen) { chunkSeed = gen(); }
     Chunk& getChunk(glm::ivec2);
     v3 getSurfaceForRender(glm::vec3 camCoords);
     glm::ivec2 toChunkCoords(glm::vec3 coords) const;
@@ -49,7 +51,7 @@ class Chunk {
 
     std::vector<float> perlinNoise(uint64_t seed) const;
     Chunk(const glm::ivec2& pos, int extent, std::mt19937& gen,
-          Terrain* terrain);
+          Terrain* terrain, int seed);
 
    private:
     CombinedNoise n1, n2;

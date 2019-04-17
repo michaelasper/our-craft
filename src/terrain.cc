@@ -4,19 +4,18 @@
 #include "noise.h"
 
 Chunk::Chunk(const glm::ivec2& pos, int size, std::mt19937& gen,
-             Terrain* terrain) {
+             Terrain* terrain, int seed) {
     this->gen = gen;
     this->tex_seed = gen();
     this->pos = pos;
     this->size = size;
     this->terrain = terrain;
+    JavaRandom rnd(seed);
 
-    this->n1 =
-        CombinedNoise(OctaveNoise(8, this->gen), OctaveNoise(8, this->gen));
-    this->n2 =
-        CombinedNoise(OctaveNoise(8, this->gen), OctaveNoise(8, this->gen));
+    this->n1 = CombinedNoise(OctaveNoise(8, rnd), OctaveNoise(8, rnd));
+    this->n2 = CombinedNoise(OctaveNoise(8, rnd), OctaveNoise(8, rnd));
 
-    this->n3 = OctaveNoise(6, this->gen);
+    this->n3 = OctaveNoise(6, rnd);
 }
 
 std::vector<float> Chunk::heightMap() {
@@ -130,7 +129,8 @@ std::vector<glm::vec3> Terrain::getSurfaceForRender(glm::vec3 pos) {
 Chunk& Terrain::getChunk(glm::ivec2 chunkCoords) {
     auto chunk = this->chunkMap.find(chunkCoords);
     if (chunk == this->chunkMap.end()) {
-        Chunk c = Chunk(chunkCoords, this->size, this->gen, this);
+        Chunk c =
+            Chunk(chunkCoords, this->size, this->gen, this, this->chunkSeed);
         auto status = this->chunkMap.insert({chunkCoords, c});
         return status.first->second;
     } else {

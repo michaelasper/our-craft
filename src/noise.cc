@@ -1,15 +1,14 @@
 #include "noise.h"
 #include <functional>
 
-Noise::Noise(std::mt19937& gen) {
+Noise::Noise(JavaRandom& gen) {
     // fisher-yates
     for (size_t i = 0; i < 256; i++) {
         p[i] = i;
     }
 
     for (size_t i = 0; i < 256; i++) {
-        std::uniform_real_distribution<> dis(i, 255);
-        char j = dis(gen);
+        char j = gen.Next(1, 256);
         char temp = p[i];
         p[i] = p[j];
         p[j] = temp;
@@ -60,7 +59,7 @@ double Noise::compute(double x, double y) {
     return c1 + v * (c2 - c1);
 }
 
-OctaveNoise::OctaveNoise(int octaves, std::mt19937& gen) {
+OctaveNoise::OctaveNoise(int octaves, JavaRandom& gen) {
     for (int i = 0; i < octaves; i++) {
         noises.push_back(Noise(gen));
     }
