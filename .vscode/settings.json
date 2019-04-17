@@ -37,6 +37,9 @@
         "string_view": "cpp",
         "tuple": "cpp",
         "typeinfo": "cpp",
-        "string": "cpp"
-    }
+        "string": "cpp",
+        "functional": "cpp",
+        "iterator": "cpp"
+    },
+    "C_Cpp.errorSquiggles": "Disabled"
 }

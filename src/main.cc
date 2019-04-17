@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -104,13 +105,42 @@ const char* fragment_shader =
 flat in vec4 normal;
 flat in vec4 world_norm;
 in vec4 light_direction;
+uniform mat4 view;
+
 out vec4 fragment_color;
 void main()
 {
-    vec4 color = vec4(abs(normal.x), abs(normal.y), abs(normal.z), 0.f);
-    vec4 base_col = clamp(world_norm * world_norm, 0.0, 1.0);
-    float intensity = clamp(-dot(light_direction, color), 0.0, 1.0);
-    fragment_color = color;
+    vec4 color = vec4(1.0,1.0,1.0,1.0); 
+    float thresh = 0.98;
+    float pos_x = dot(normal, vec4(1.0,0.0,0.0,0.0));
+    float pos_y = dot(normal, vec4(0.0,1.0,0.0,0.0));
+    float pos_z = dot(normal, vec4(0.0,0.0,1.0,0.0));
+    float neg_x = dot(normal, vec4(-1.0,0.0,0.0,0.0));
+    float neg_y = dot(normal, vec4(0.0,-1.0,0.0,0.0));
+    float neg_z = dot(normal, vec4(0.0,0.0,-1.0,0.0));
+
+    if(pos_x > thresh){
+        color = vec4(1.0,0.0,0.0,1.0);
+    }
+    if(pos_y > thresh){
+        color = vec4(0.0,1.0,0.0,1.0);
+    }
+    if(pos_z > thresh){
+        color = vec4(0.0,0.0,1.0,1.0);
+    }
+    if(neg_x > thresh){
+        color = vec4(1.0,0.0,0.0,1.0);
+    }
+    if(neg_y > thresh){
+        color = vec4(0.0,1.0,0.0,1.0);
+    }
+    if(neg_z > thresh){
+        color = vec4(0.0,0.0,1.0,1.0);
+    }
+
+    float dot_nl = dot(normalize(light_direction), view * normalize(normal));
+    dot_nl = clamp(dot_nl, 0.15, 1.0);
+    fragment_color = clamp(dot_nl * color, 0.05, 1.0);
 }
 )zzz";
 
@@ -229,9 +259,9 @@ int main(int argc, char* argv[]) {
     if (!glfwInit()) exit(EXIT_FAILURE);
     // g_menger = std::make_shared<Menger>();
     glfwSetErrorCallback(ErrorCallback);
-
-    srand((unsigned)time(NULL));
-    Terrain terrian(rand());
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    Terrain terrian(gen);
 
     // Ask an OpenGL 4.1 core profile context
     // It is required on OSX and non-NVIDIA Linux
@@ -375,8 +405,7 @@ int main(int argc, char* argv[]) {
 
         if (curChunk != prevChunk) {
             prevChunk = curChunk;
-            offsets = terrian.getSurfaceForRender(g_camera.getPos(),
-                                                  glm::vec2(-5.0, -3.0));
+            offsets = terrian.getSurfaceForRender(g_camera.getPos());
 
             CHECK_GL_ERROR(
                 glBindBuffer(GL_ARRAY_BUFFER,
