@@ -8,7 +8,7 @@ Noise::Noise(JavaRandom& gen) {
     }
 
     for (size_t i = 0; i < 256; i++) {
-        char j = gen.Next(1, 256);
+        char j = gen.Next(i, 256);
         char temp = p[i];
         p[i] = p[j];
         p[j] = temp;
