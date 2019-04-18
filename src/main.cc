@@ -142,18 +142,26 @@ float fbm(vec3 x) {
 
 void main()
 {
-  
-    float col = fbm(world_position.xyz);
+
+    int pixely = 8;
+    int smooths = 2;
+    // int smooth = 1;
 
     vec4 baseCol;
-    if(world_position.y < 0){
+    if(world_position.y < .125){
         baseCol = vec4(0.1,0.4,0.8,1.0);
+        pixely = 1;
+        smooths = 8;
     }
-    else if(world_position.y < 5){
+    else if(world_position.y < 5.125){
         baseCol = vec4(0.3,0.8,0.15,1.0);
     }else{
         baseCol = vec4(0.7,0.7,0.7,1.0);
     }
+  
+    float col = fbm(floor(world_position.xyz * pixely)/smooths);
+
+    
 
 
     fragment_color = col * baseCol; 
