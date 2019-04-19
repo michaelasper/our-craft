@@ -21,7 +21,6 @@ class Chunk;
 
 class Terrain {
     std::mt19937 gen;
-    int size = 16;
     std::unordered_map<glm::ivec2, Chunk, std::hash<glm::ivec2>,
                        std::equal_to<glm::ivec2>>
         chunkMap;
@@ -29,6 +28,7 @@ class Terrain {
     int chunkSeed;
 
    public:
+    int size = 16;
     // Perlin p = Perlin();
 
     Terrain(std::mt19937& gen) : gen(gen) { chunkSeed = gen(); }
