@@ -15,7 +15,7 @@ Chunk::Chunk(const glm::ivec2& pos, int size, std::mt19937& gen,
     JavaRandom rnd(seed);
 
     this->n1 = CombinedNoise(OctaveNoise(8, rnd), OctaveNoise(8, rnd));
-    this->n2 = CombinedNoise(OctaveNoise(10, rnd), OctaveNoise(10, rnd));
+    this->n2 = CombinedNoise(OctaveNoise(9, rnd), OctaveNoise(9, rnd));
 
     this->n3 = OctaveNoise(6, rnd);
 }
@@ -32,13 +32,13 @@ std::vector<float> Chunk::heightMap() {
             double height = heightMin;
 
             // if (n3.compute(x + (pos.x * size), z + (pos.y * size)) <= 0) {
-            // double heightMax =
-            //     n2.compute(x + (pos.x * size), z + (pos.y * size)) / 5 + 6;
-            // height = std::max(heightMin, heightMax);
+            double heightMax =
+                n2.compute(x + (pos.x * size), z + (pos.y * size)) / 5 + 6;
+            height = std::max(heightMin, heightMax);
             // }
 
             height *= 0.8;
-            if (height < 0) height *= 0.8f;
+            if (height < 0) height *= 0.4f;
 
             heightMap[index] = height;
         }

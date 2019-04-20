@@ -131,8 +131,8 @@ float noise(vec3 p){
 float fbm(vec3 x) {
 	float v = 0.0;
 	float a = 0.5;
-	vec3 shift = vec3(100);
-	for (int i = 0; i < 8; ++i) {
+	vec3 shift = vec3(20);
+	for (int i = 0; i < 3; ++i) {
 		v += a * noise(x);
 		x = x * 2.0 + shift;
 		a *= 0.5;
@@ -143,34 +143,31 @@ float fbm(vec3 x) {
 void main()
 {
 
-    int pixely = 8;
+    int pixely = 4;
     int smooths = 2;
     // int smooth = 1;
 
     vec4 baseCol;
     if(world_position.y < .125){
         baseCol = vec4(0.1,0.4,0.8,1.0);
-        pixely = 1;
-        smooths = 8;
+        pixely = 2;
+        smooths = 16;
     }
-    else if(world_position.y < 5.125){
+    else if(world_position.y < 10.025){
         baseCol = vec4(0.3,0.8,0.15,1.0);
     }else{
         baseCol = vec4(0.7,0.7,0.7,1.0);
     }
   
-    float col = fbm(floor(world_position.xyz * pixely)/smooths);
+    float col = noise(floor(world_position.xyz * pixely)/smooths);
 
-    
-
-
-    fragment_color = col * baseCol; 
-    fragment_color += vec4(0.1,0.1,0.1, 1.0);
+    fragment_color = 0.4 * (col * baseCol) + 0.6 * (baseCol); 
+    fragment_color += vec4(0.15,0.15,0.15, 0.0);
 
     float dot_nl = dot(normalize(light_direction), view * normalize(normal));
-    dot_nl = clamp(dot_nl, 0.5, 1.0);
-    fragment_color = clamp( fragment_color * dot_nl, 0.0, 1.0);
-    // fragment_color[3] = 1.0;
+    dot_nl = clamp(dot_nl, 0.4, 1.0);
+    fragment_color = clamp( fragment_color * dot_nl, 0.0, 0.8);
+    fragment_color[3] = 1.0;
 }
 )zzz";
 
@@ -304,6 +301,8 @@ int main(int argc, char* argv[]) {
     CHECK_SUCCESS(window != nullptr);
     glfwMakeContextCurrent(window);
     glewExperimental = GL_TRUE;
+    glfwWindowHint(GLFW_SAMPLES, 16);
+    glEnable(GL_MULTISAMPLE);
 
     CHECK_SUCCESS(glewInit() == GLEW_OK);
     glGetError();  // clear GLEW's error for it
@@ -425,6 +424,18 @@ int main(int argc, char* argv[]) {
     GLint light_position_location = 0;
     CHECK_GL_ERROR(light_position_location =
                        glGetUniformLocation(program_id, "light_position"));
+
+    // ▄▄▄▄▄▄▄▄▄▄▄  ▄    ▄  ▄         ▄
+    // ▐░░░░░░░░░░░▌▐░▌  ▐░▌▐░▌       ▐░▌
+    // ▐░█▀▀▀▀▀▀▀▀▀ ▐░▌ ▐░▌ ▐░▌       ▐░▌
+    // ▐░▌          ▐░▌▐░▌  ▐░▌       ▐░▌
+    // ▐░█▄▄▄▄▄▄▄▄▄ ▐░▌░▌   ▐░█▄▄▄▄▄▄▄█░▌
+    // ▐░░░░░░░░░░░▌▐░░▌    ▐░░░░░░░░░░░▌
+    //  ▀▀▀▀▀▀▀▀▀█░▌▐░▌░▌    ▀▀▀▀█░█▀▀▀▀
+    //           ▐░▌▐░▌▐░▌       ▐░▌
+    //  ▄▄▄▄▄▄▄▄▄█░▌▐░▌ ▐░▌      ▐░▌
+    // ▐░░░░░░░░░░░▌▐░▌  ▐░▌     ▐░▌
+    //  ▀▀▀▀▀▀▀▀▀▀▀  ▀    ▀       ▀
 
     glm::vec4 light_position = glm::vec4(10.0f, 10.0f, 10.0f, 1.0f);
     float aspect = 0.0f;
