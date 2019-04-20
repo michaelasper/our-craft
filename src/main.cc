@@ -231,7 +231,8 @@ bool intersect(glm::vec2 point, glm::vec2 cube) {
 
     std::cout << "point " << point[0] << " " << point[1] << std::endl;
     std::cout << "cube " << cube[0] << " " << cube[1] << std::endl;
-    return xmin <= point.x && point.x <= xmax && zmin <= point.y && point.y <= zmax;
+    return xmin <= point.x && point.x <= xmax && zmin <= point.y &&
+           point.y <= zmax;
 }
 
 bool CollisionDetection() {
@@ -239,25 +240,32 @@ bool CollisionDetection() {
     glm::ivec2 chunk_coords = terrain.toChunkCoords(player_pos);
     std::vector<glm::vec3> cubes = terrain.genChunkSurface(chunk_coords);
 
-    std::cout << "player pos: " << player_pos[0] << " " << player_pos[1] << " " << player_pos[2] << std::endl;
-    for(auto c : cubes) {
-        auto x = c + glm::vec3(chunk_coords.x * terrain.size, 0, chunk_coords.y * terrain.size);
+    for (auto c : cubes) {
+        auto x = c + glm::vec3(chunk_coords.x * terrain.size, 0,
+                               chunk_coords.y * terrain.size);
 
         // PLayer should be at same height as the intersecting cube
-        if(x.y >= player_pos.y - 2 && x.y <= player_pos.y + 2 ) {
-            if((x.x - player_pos.x) * (x.x - player_pos.x) + (x.z - player_pos.z) * (x.z - player_pos.z) <= 16 ) {
-                std::cout << "potential intersection at " << x[0] << " " << x[1] << " " << x[2] <<std::endl;
-                if(intersect(glm::vec2(player_pos.x, player_pos.z), glm::vec2(x.x, x.z))) {
+        if (x.y >= player_pos.y - 2 && x.y <= player_pos.y + 2) {
+            if ((x.x - player_pos.x) * (x.x - player_pos.x) +
+                    (x.z - player_pos.z) * (x.z - player_pos.z) <=
+                16) {
+                std::cout << "potential intersection at " << x[0] << " " << x[1]
+                          << " " << x[2] << std::endl;
+                if (intersect(glm::vec2(player_pos.x, player_pos.z),
+                              glm::vec2(x.x, x.z))) {
                     std::cout << "intersected" << std::endl;
-                    std::cout << x[0] << " " << x[1] << " " << x[2] << std::endl;
+                    std::cout << x[0] << " " << x[1] << " " << x[2]
+                              << std::endl;
                     return true;
                 }
             }
         }
-
     }
     return false;
 }
+
+int walk = 0;
+int strafe = 0;
 
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action,
                  int mods) {
@@ -269,55 +277,45 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action,
     else if (key == GLFW_KEY_S && mods == GLFW_MOD_CONTROL &&
              action == GLFW_RELEASE) {
         g_save_geo = true;
-    } 
-    else if (key == GLFW_KEY_F && mods == GLFW_MOD_CONTROL && 
-             action == GLFW_RELEASE) {
-        if(!g_gravity)
+    } else if (key == GLFW_KEY_F && mods == GLFW_MOD_CONTROL &&
+               action == GLFW_RELEASE) {
+        if (!g_gravity)
             std::cout << "Gravity turned on" << std::endl;
         else
             std::cout << "Gravity turned off" << std::endl;
         g_gravity = !g_gravity;
-    } else if (key == GLFW_KEY_W && action != GLFW_RELEASE) {
+    } else if (key == GLFW_KEY_W) {
         // FIXME: WASD
-        if(g_gravity) {
-            bool collision = CollisionDetection();
-            std::cout << g_gravity << std::endl;
-            if(!collision)
-                g_camera.move(Camera::Direction::FORWARD);
-        }
-        else { 
+        if (g_gravity) {
+            if (action == GLFW_PRESS) walk = 1;
+            if (action == GLFW_RELEASE) walk = 0;
+            ;
+        } else {
             g_camera.move(Camera::Direction::FORWARD);
         }
-    } else if (key == GLFW_KEY_S && action != GLFW_RELEASE) {
-        if(g_gravity) {
-            bool collision = CollisionDetection();
-            std::cout << g_gravity << std::endl;
-            if(!collision)
-                g_camera.move(Camera::Direction::BACKWARD);
-        }
-        else { 
+    } else if (key == GLFW_KEY_S) {
+        if (g_gravity) {
+            if (action == GLFW_PRESS) walk = -1;
+            if (action == GLFW_RELEASE) walk = 0;
+        } else {
             g_camera.move(Camera::Direction::BACKWARD);
         }
 
-    } else if (key == GLFW_KEY_A && action != GLFW_RELEASE) {
-        if(g_gravity) {
-            bool collision = CollisionDetection();
-            std::cout << g_gravity << std::endl;
-            if(!collision)
-                g_camera.move(Camera::Direction::LEFT);
-        }
-        else {
+    } else if (key == GLFW_KEY_A) {
+        if (g_gravity) {
+            if (action == GLFW_PRESS) strafe = -1;
+            if (action == GLFW_RELEASE) strafe = 0;
+        } else {
             g_camera.move(Camera::Direction::LEFT);
         }
 
-    } else if (key == GLFW_KEY_D && action != GLFW_RELEASE) {
-        if(g_gravity) {
-            bool collision = CollisionDetection();
-            std::cout << g_gravity << std::endl;
-            if(!collision)
-                g_camera.move(Camera::Direction::RIGHT);
-        }
-        else { 
+    } else if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+        g_camera.jump();
+    } else if (key == GLFW_KEY_D) {
+        if (g_gravity) {
+            if (action == GLFW_PRESS) strafe = 1;
+            if (action == GLFW_RELEASE) strafe = 0;
+        } else {
             g_camera.move(Camera::Direction::RIGHT);
         }
     } else if (key == GLFW_KEY_Q && action != GLFW_RELEASE) {
@@ -521,6 +519,8 @@ int main(int argc, char* argv[]) {
     glm::vec4 light_position = glm::vec4(10.0f, 10.0f, 10.0f, 1.0f);
     float aspect = 0.0f;
     float theta = 0.0f;
+    glfwSetTime(0.0);
+    float time = glfwGetTime();
     glm::ivec2 prevChunk(-500, -500);
     while (!glfwWindowShouldClose(window)) {
         glm::ivec2 curChunk = terrain.toChunkCoords(g_camera.getPos());
@@ -571,6 +571,11 @@ int main(int argc, char* argv[]) {
         CHECK_GL_ERROR(glDrawElementsInstanced(
             GL_TRIANGLES, obj_faces.size() * 3, GL_UNSIGNED_INT, 0, cubes));
 
+        float newTime = glfwGetTime();
+        if (g_gravity) g_camera.physics(newTime - time, offsets);
+        if (g_gravity) g_camera.walk(walk);
+        if (g_gravity) g_camera.strafe(strafe);
+        time = newTime;
         // Poll and swap.
         glfwPollEvents();
         glfwSwapBuffers(window);
