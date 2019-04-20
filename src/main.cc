@@ -216,6 +216,48 @@ void ErrorCallback(int error, const char* description) {
 // std::shared_ptr<Menger> g_menger;
 Camera g_camera;
 bool g_save_geo = false;
+bool g_gravity = false;
+std::random_device rd;
+std::mt19937 gen(rd());
+Terrain terrain(gen);
+
+// Point cube intersect
+bool intersect(glm::vec2 point, glm::vec2 cube) {
+    // xmin<=x<=xmax && ymin<=y<=ymax && zmin<=z<=zmax
+    float xmin = cube.x;
+    float xmax = cube.x + 1;
+    float zmin = cube.y - 1;
+    float zmax = cube.y;
+
+    std::cout << "point " << point[0] << " " << point[1] << std::endl;
+    std::cout << "cube " << cube[0] << " " << cube[1] << std::endl;
+    return xmin <= point.x && point.x <= xmax && zmin <= point.y && point.y <= zmax;
+}
+
+bool CollisionDetection() {
+    glm::vec3 player_pos = g_camera.getPos();
+    glm::ivec2 chunk_coords = terrain.toChunkCoords(player_pos);
+    std::vector<glm::vec3> cubes = terrain.genChunkSurface(chunk_coords);
+
+    std::cout << "player pos: " << player_pos[0] << " " << player_pos[1] << " " << player_pos[2] << std::endl;
+    for(auto c : cubes) {
+        auto x = c + glm::vec3(chunk_coords.x * terrain.size, 0, chunk_coords.y * terrain.size);
+
+        // PLayer should be at same height as the intersecting cube
+        if(x.y >= player_pos.y - 2 && x.y <= player_pos.y + 2 ) {
+            if((x.x - player_pos.x) * (x.x - player_pos.x) + (x.z - player_pos.z) * (x.z - player_pos.z) <= 16 ) {
+                std::cout << "potential intersection at " << x[0] << " " << x[1] << " " << x[2] <<std::endl;
+                if(intersect(glm::vec2(player_pos.x, player_pos.z), glm::vec2(x.x, x.z))) {
+                    std::cout << "intersected" << std::endl;
+                    std::cout << x[0] << " " << x[1] << " " << x[2] << std::endl;
+                    return true;
+                }
+            }
+        }
+
+    }
+    return false;
+}
 
 void KeyCallback(GLFWwindow* window, int key, int scancode, int action,
                  int mods) {
@@ -227,18 +269,57 @@ void KeyCallback(GLFWwindow* window, int key, int scancode, int action,
     else if (key == GLFW_KEY_S && mods == GLFW_MOD_CONTROL &&
              action == GLFW_RELEASE) {
         g_save_geo = true;
-
+    } 
+    else if (key == GLFW_KEY_F && mods == GLFW_MOD_CONTROL && 
+             action == GLFW_RELEASE) {
+        if(!g_gravity)
+            std::cout << "Gravity turned on" << std::endl;
+        else
+            std::cout << "Gravity turned off" << std::endl;
+        g_gravity = !g_gravity;
     } else if (key == GLFW_KEY_W && action != GLFW_RELEASE) {
         // FIXME: WASD
-        g_camera.move(Camera::Direction::FORWARD);
+        if(g_gravity) {
+            bool collision = CollisionDetection();
+            std::cout << g_gravity << std::endl;
+            if(!collision)
+                g_camera.move(Camera::Direction::FORWARD);
+        }
+        else { 
+            g_camera.move(Camera::Direction::FORWARD);
+        }
     } else if (key == GLFW_KEY_S && action != GLFW_RELEASE) {
-        g_camera.move(Camera::Direction::BACKWARD);
+        if(g_gravity) {
+            bool collision = CollisionDetection();
+            std::cout << g_gravity << std::endl;
+            if(!collision)
+                g_camera.move(Camera::Direction::BACKWARD);
+        }
+        else { 
+            g_camera.move(Camera::Direction::BACKWARD);
+        }
 
     } else if (key == GLFW_KEY_A && action != GLFW_RELEASE) {
-        g_camera.move(Camera::Direction::LEFT);
+        if(g_gravity) {
+            bool collision = CollisionDetection();
+            std::cout << g_gravity << std::endl;
+            if(!collision)
+                g_camera.move(Camera::Direction::LEFT);
+        }
+        else {
+            g_camera.move(Camera::Direction::LEFT);
+        }
 
     } else if (key == GLFW_KEY_D && action != GLFW_RELEASE) {
-        g_camera.move(Camera::Direction::RIGHT);
+        if(g_gravity) {
+            bool collision = CollisionDetection();
+            std::cout << g_gravity << std::endl;
+            if(!collision)
+                g_camera.move(Camera::Direction::RIGHT);
+        }
+        else { 
+            g_camera.move(Camera::Direction::RIGHT);
+        }
     } else if (key == GLFW_KEY_Q && action != GLFW_RELEASE) {
         exit(1);
     } else if (key == GLFW_KEY_LEFT && action != GLFW_RELEASE) {
@@ -286,9 +367,9 @@ int main(int argc, char* argv[]) {
     if (!glfwInit()) exit(EXIT_FAILURE);
     // g_menger = std::make_shared<Menger>();
     glfwSetErrorCallback(ErrorCallback);
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    Terrain terrian(gen);
+    // std::random_device rd;
+    // std::mt19937 gen(rd());
+    // terrain(gen);
 
     // Ask an OpenGL 4.1 core profile context
     // It is required on OSX and non-NVIDIA Linux
@@ -442,11 +523,11 @@ int main(int argc, char* argv[]) {
     float theta = 0.0f;
     glm::ivec2 prevChunk(-500, -500);
     while (!glfwWindowShouldClose(window)) {
-        glm::ivec2 curChunk = terrian.toChunkCoords(g_camera.getPos());
+        glm::ivec2 curChunk = terrain.toChunkCoords(g_camera.getPos());
 
         if (curChunk != prevChunk) {
             prevChunk = curChunk;
-            offsets = terrian.getSurfaceForRender(g_camera.getPos());
+            offsets = terrain.getSurfaceForRender(g_camera.getPos());
 
             CHECK_GL_ERROR(
                 glBindBuffer(GL_ARRAY_BUFFER,
