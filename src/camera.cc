@@ -83,7 +83,9 @@ int collide(const glm::vec3& pos, const glm::vec3& cube) {
 }
 
 void Camera::walk(int direction) {
-    this->velocity += (((float)direction) * look_);
+    auto temp = (((float)direction) * look_);
+    temp.y = 0;
+    this->velocity += temp;
 }
 
 void Camera::strafe(int direction) {
@@ -91,7 +93,11 @@ void Camera::strafe(int direction) {
     this->velocity += (((float)direction) * right);
 }
 
-void Camera::jump() { this->velocity += glm::vec3(0.0f, 50.0f, 0.0f); }
+void Camera::jump() { 
+    if(this->velocity.y == 0) this->velocity += glm::vec3(0.0f, 20.0f, 0.0f); 
+    // this->velocity.y = std::max(20.0f, velocity.y);
+    
+}
 
 void Camera::rotate(double dx, double dy) {
     float yaw = atan(dx / camera_distance_) * rotation_speed;
